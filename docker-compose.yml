@@ -1,0 +1,208 @@
+services:
+  catelogsDb:
+    image: postgres
+  basketDb:
+    image: postgres
+  basketCache:
+    image: redis
+  orderDb:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+  amqpBus:
+    image: rabbitmq:management
+  inventoryDb:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+  sagaStateDb:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+
+  basket_service:
+    # image: basket_service
+    build:
+      context: .
+      dockerfile: Service/Basket/basket.API/Dockerfile
+    image: basket_service:1.0.0
+    container_name: basket_service
+    restart: always
+    environment:
+      # ASPNETCORE_HTTPS_PORTS: 6051
+      ASPNETCORE_HTTP_PORTS: 8080
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__PostgresDb: Server=basketDb;Port=5432;Database=basket;User Id=postgres;Password=postgres
+      ConnectionStrings__RedisStore: basketCache:6379
+      GRPCClient__DiscountAddress: http://discount_service:8080
+      Client__Product: http://catelog_service:8080
+      MessageBroker__Host: amqp://amqpBus:5672
+      MessageBroker__UserName: guest
+      MessageBroker__Password: guest
+    volumes:
+      - ${APPDATA}/Microsoft/UserSecrets:/home/app/.microsoft/usersecrets:ro
+      - ${APPDATA}/ASP.NET/Https:/home/app/.aspnet/https:ro
+    depends_on: 
+      - basketDb
+      - basketCache
+      - discount_service 
+      - amqpBus 
+    ports:
+      - "6001:8080"
+ 
+  catelog_service:
+    # image: catalog_service
+    build:
+      context: .
+      dockerfile: Service/Catelog/catelogs.API/Dockerfile
+    image: catalog_service:1.0.0
+    container_name: catalog_service
+    restart: always
+    environment:
+      # ASPNETCORE_HTTPS_PORTS: 6050
+      ASPNETCORE_HTTP_PORTS: 8080
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__PostgresDb: Server=catelogsDb;Port=5432;Database=catelog;User Id=postgres;Password=postgres
+      MessageBroker__Host: amqp://amqpBus:5672
+      MessageBroker__UserName: guest
+      MessageBroker__Password: guest
+    volumes:
+      - ${APPDATA}/Microsoft/UserSecrets:/home/app/.microsoft/usersecrets:ro
+      - ${APPDATA}/ASP.NET/Https:/home/app/.aspnet/https:ro
+    depends_on:
+      -  catelogsDb
+    ports:
+      - "6000:8080"
+
+  discount_service:
+    build:
+      context: .
+      dockerfile: Service/Discount/discount.API/Dockerfile
+    image: discount_service:1.0.0
+    container_name: discount_service
+    restart: always
+    ports:
+      -  "6002:8080"
+    environment: 
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__database: Data Source=discountDb
+    volumes:
+      - ${APPDATA}/Microsoft/UserSecrets:/home/app/.microsoft/usersecrets:ro
+      - ${APPDATA}/ASP.NET/Https:/home/app/.aspnet/https:ro
+    
+  order_service:
+    build:
+      context: .
+      dockerfile: Service/Order/order.API/Dockerfile
+    image: order_service:1.0.0
+    container_name: order_service
+    restart: always
+    depends_on:
+      - orderDb
+      - amqpBus
+    ports:
+      - "6003:8080"
+    environment:
+      ConnectionStrings__OrderDb: Server=orderDb;Database=OrderDb;User Id=sa;Password=Sa_password123!;Encrypt=False;TrustServerCertificate=True
+      MessageBroker__Host: amqp://amqpBus:5672
+      MessageBroker__UserName: guest
+      MessageBroker__Password: guest
+    volumes:
+      - ${APPDATA}/Microsoft/UserSecrets:/home/app/.microsoft/usersecrets:ro
+      - ${APPDATA}/ASP.NET/Https:/home/app/.aspnet/https:ro
+
+  gateway_service:
+    build:
+      context: .
+      dockerfile: ApiGateway/pizza_shop.gateway/Dockerfile
+    image: gateway_service:1.0.0
+    container_name: gateway_service
+    restart: always
+    environment:
+      ASPNETCORE_HTTP_PORTS: 8080
+      ASPNETCORE_ENVIRONMENT: Development
+      JwtSettings__Issuer: http://auth_service:8080
+      JwtSettings__Audience: http://gateway_service:8080
+      ReverseProxy__Clusters__CatalogCluster__Destinations__destination1__Address: http://catelog_service:8080
+      ReverseProxy__Clusters__BasketCluster__Destinations__destination1__Address: http://basket_service:8080
+      ReverseProxy__Clusters__OrderCluster__Destinations__destination1__Address: http://order_service:8080
+      ReverseProxy__Clusters__InventoryCluster__Destinations__destination1__Address: http://inventory_service:8080
+      ReverseProxy__Clusters__AuthCluster__Destinations__destination1__Address: http://auth_service:8080
+    depends_on:
+      - basket_service
+      - order_service
+      - catelog_service
+      - auth_service
+      - inventory_service
+    ports:
+      - "6005:8080" 
+
+  inventory_service:
+    build: 
+      context: .
+      dockerfile: Service/Inventory/inventory.API/Dockerfile
+    image: inventory_service:1.0.0
+    container_name: inventory_service
+    ports:
+      - "6004:8080" 
+    environment:
+      ConnectionStrings__InventoryDb: Server=inventoryDb;Database=InventoryDb;User Id=sa;Password=Sa_password123!;Encrypt=False;TrustServerCertificate=True
+      MessageBroker__Host: amqp://amqpBus:5672
+      MessageBroker__UserName: guest
+      MessageBroker__Password: guest
+    restart: always
+    depends_on:
+      - amqpBus
+      - inventoryDb 
+    volumes:
+      - ${APPDATA}/Microsoft/UserSecrets:/home/app/.microsoft/usersecrets:ro
+      - ${APPDATA}/ASP.NET/Https:/home/app/.aspnet/https:ro
+
+  saga_state_machine:
+    build:
+      context: .
+      dockerfile: SagaOrchestration/StateMachine/Dockerfile
+      # SagaOrchestrationWorker/SagaStateMachine/Dockerfile
+    image: saga_state_machine:1.0.0
+    container_name: saga_state_machine
+    ports:
+      - "5999:8080" 
+    environment:
+      ConnectionStrings__SagaStateDb: Server=sagaStateDb;Database=SagaStateDb;User Id=sa;Password=Sa_password123!;Encrypt=False;TrustServerCertificate=True
+      MessageBroker__Host: amqp://amqpBus:5672
+      MessageBroker__UserName: guest
+      MessageBroker__Password: guest
+    depends_on:
+      - sagaStateDb
+      - basket_service  
+      - catelog_service
+      - discount_service
+      - order_service
+      - gateway_service
+      - inventory_service
+    restart: always
+    volumes:
+      - ${APPDATA}/Microsoft/UserSecrets:/home/app/.microsoft/usersecrets:ro
+      - ${APPDATA}/ASP.NET/Https:/home/app/.aspnet/https:ro
+      
+  auth_service:
+    build:
+      context: .
+      dockerfile: Service/Auth/authentication.API/Dockerfile
+    image: auth_service:1.0.0
+    container_name: auth_service
+    environment:
+      JwtSettings__Issuer: http://auth_service:8080
+      JwtSettings__Audience: http://gateway_service:8080
+      MessageBroker__Host: amqp://amqpBus:5672
+      MessageBroker__UserName: guest
+      MessageBroker__Password: guest
+    ports:
+      - "6006:8080"
+    restart: always
+    volumes:
+      - ${APPDATA}/Microsoft/UserSecrets:/home/app/.microsoft/usersecrets:ro
+      - ${APPDATA}/ASP.NET/Https:/home/app/.aspnet/https:ro
+
+volumes:
+  catelog_postgresDb: 
+  basket_postgresDb: 
+  basket_redisStore:  
+  order_sqlDb: 
+  inventory_sqlDb:
+  saga_state_sqlDb:
+  

@@ -1,0 +1,135 @@
+﻿
+Scope of functionality:
+------------
+Use case:
+- CataLog service:
+	- Add/Update/Get products
+ 	- Filter product by category and name
+
+- Cart service:
+	- Add item to cart
+	- Remove item 
+	- Delete Whole cart
+	- Checkout the cart(With discounted price)
+
+- Discount service:
+	- Add/Update/Delete discount on each product which is available in catalog
+	
+- Order service:
+	- can directly Add/Update/Delete/Get order
+	- Order will be created by checkout with cart service
+
+- Inventory service:
+	- After successful order placed, reserved Quantity will be increased, available quantity will be decreased.
+
+------------------------------------------------------	
+Async Event handler:
+
+BasketCheckoutEvent
+
+Published by: Basket.API → CheckoutHandler
+
+Consumed by: StateMachine → OrderStateMachine
+
+CreateProductEvent ✅
+
+Published by: Catalog.API → CreateProductHandler
+
+Consumed by: Order.Application → CreateProductEventHandler
+
+OrderEvent
+
+Published by: StateMachine → OrderStateMachine
+
+Consumed by: Order.Application → OrderEventConsumer
+
+OrderFailedEvent
+
+Published by: StateMachine → OrderStateMachine
+
+Consumed by: Basket.API → OrderFailedEventConsumer
+
+OrderPlacedEvent
+
+Published by: StateMachine → OrderStateMachine
+
+Consumed by: Inventory.Application → OrderPlacedHandler
+
+OrderPlacedRollbackEvent ✅
+
+Published by: Order.Application → OrderCreateCommandHandler (exception handling)
+
+Consumed by: StateMachine → OrderStateMachine
+
+OrderPlacedSuccessfullEvent
+
+Published by: Order.Application → OrderCreatedEventHandler
+
+Consumed by: StateMachine → OrderStateMachine
+
+StockeReservedEvent
+
+Published by: StateMachine → OrderStateMachine
+
+Consumed by: Order.Application → StockeReservedEventHandler
+
+StockeReservedRollbackEvent
+
+Published by: Inventory.Application → OrderPlacedHandler
+
+Consumed by: StateMachine → OrderStateMachine
+
+StockeReservedSuccessfullEvent
+
+Published by: Inventory.Application → StockReservedDomainEventHandler
+
+Consumed by: StateMachine → OrderStateMachine
+
+StockeReserveFailedEvent
+
+Published by: StateMachine → OrderStateMachine
+
+Consumed by: Order.Application → StockerReservedFailedEventHandler
+------------------------------------------------------	
+Left to be Added functionalities:
+Add signalR
+- Whenever any product expired, sent mail regarding quantity through communication service and send the notification to admin
+
+------------------------------------------------------
+Order - state
+	- CheckOut
+	- OrderPlacedSuccessful
+	- OrderPlacedFail
+	- InventoryReservedSuccessful
+	- InventoryReservedFail
+
+
+
+------------------------------------------------------
+Ex - saga pattern flow
+
+1. order service
+	publish -  CreateOrderMessage 
+
+2. state machine
+	publish - Order created Event
+
+3. Subscription service
+	- OrdercreatedEventHandler (Infra)
+	publish - stockReservedEvent 
+
+4. state machine
+	publish - CompletePaymentMessage Event
+
+5. payment service
+	- CompletePaymentMessage Event
+	publish - PaymentCompletedEvent
+
+6. state machine
+	publish -  OrderCompletedEvent Event
+	
+
+
+
+
+

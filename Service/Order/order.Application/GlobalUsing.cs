@@ -1,0 +1,11 @@
+﻿global using OrderModel = order.Domain.Models.Order;
+global using buildingBlock.CQRS;
+global using FluentValidation;
+global using order.Application.Dtos;
+global using buildingBlock.Exceptions;
+global using Microsoft.EntityFrameworkCore;
+global using order.Application.Data;
+global using order.Application.Extension;
+global using MediatR;
+global using order.Domain.Events;
+global using buildingBlock.Behaviour;

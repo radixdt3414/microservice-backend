@@ -1,0 +1,14 @@
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS publish
+WORKDIR /src
+COPY ["Service/Basket/basket.API/basket.API.csproj", "Service/Basket/basket.API/"]
+COPY ["BuildingBlocks/buildingBlock/buildingBlock.csproj", "BuildingBlocks/buildingBlock/"]
+RUN dotnet restore "./Service/Basket/basket.API/basket.API.csproj"
+COPY . .
+WORKDIR "/src/Service/Basket/basket.API"
+RUN dotnet publish "./basket.API.csproj" -c Release -o /app/publish /p:UseAppHost=false
+
+# This stage is used in production or when running from VS in regular mode (Default when not using the Debug configuration)
+FROM mcr.microsoft.com/dotnet/aspnet:8.0  AS final
+WORKDIR /app
+COPY --from=publish /app/publish .
+ENTRYPOINT ["dotnet", "basket.API.dll"]

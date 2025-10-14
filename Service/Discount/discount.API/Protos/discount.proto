@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+option csharp_namespace = "discount.API.Protos";
+
+package discount;
+
+service DiscountProtoService{
+	rpc GetDiscount(GetDiscountRequest) returns(CouponResponse);
+	rpc AddDiscount(AddDiscountRequest) returns(CouponResponse);
+	rpc UpdateDiscount(UpdateDiscountRequest) returns(CouponResponse);
+	rpc DeleteDiscount(DeleteDiscountRequest) returns(DeleteDiscountResponse);
+}
+
+message GetDiscountRequest{
+	string ProductName = 1;
+}
+
+message AddDiscountRequest{
+	string ProductName =1;
+    int64 DiscountPrice = 2;
+    string Description = 3;
+}
+
+message UpdateDiscountRequest{
+	string Id = 1;
+	string ProductName =2;
+    int64 DiscountPrice = 3;
+    string Description = 4;
+}
+
+message DeleteDiscountRequest{
+	string ProductName = 1;
+}
+
+message DeleteDiscountResponse{
+	bool IsSuccess = 1;
+}
+
+message CouponResponse{
+	string Id = 1;
+	string ProductName =2;
+    int64 DiscountPrice = 3;
+    string Description = 4;
+}

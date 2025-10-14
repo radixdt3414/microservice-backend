@@ -1,0 +1,81 @@
+version: "3.8"
+
+services:
+  catelogsDb:
+    image: postgres:15
+    container_name: catelogDb_postgres
+    environment:
+      POSTGRES_DB: catelog
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - catelog_postgresDb:/var/lib/postgresql/data
+    restart: always
+    ports:
+      - "5432:5432"
+
+  basketDb:
+    image: postgres:15
+    container_name: basketDb_postgres
+    environment:
+      POSTGRES_DB: basket
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - basket_postgresDb:/var/lib/postgresql/data
+    restart: always
+    ports:
+      - "5433:5432"
+
+  basketCache:
+    image: redis:8.2.1
+    container_name: basketStore_redis
+    ports:
+      - 6379:6379
+    volumes:
+      - basket_redisStore:/data
+
+  orderDb:
+    image: mcr.microsoft.com/mssql/server:2022-latest  
+    container_name: orderDb_sql
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=Sa_password123!
+    ports:
+      - "1433:1433"
+    restart: always
+    volumes:
+      - order_sqlDb:/var/opt/mssql  
+
+  amqpBus:
+    image: rabbitmq:management
+    container_name: amqpBus_rabbitMq
+    ports:
+      -  "5672:5672"
+      -  "15672:15672"
+    
+  inventorydb:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: inventorydb_sql
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=Sa_password123!
+    ports: 
+      - "1444:1433"
+    restart: always
+    volumes:
+      - inventory_sqlDb:/var/opt/mssql  
+ 
+
+  sagaStateDb:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: sagaStateDb
+    restart: always
+    environment: 
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=Sa_password123! 
+    ports:
+      - "1454:1433" 
+    volumes:
+      - saga_state_sqlDb:/var/opt/mssql  
+    

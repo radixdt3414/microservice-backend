@@ -1,0 +1,10 @@
+﻿global using Carter;
+global using Marten;
+global using Mapster;
+global using MediatR;
+global using CartModel = basket.API.Models.Cart;
+//global using CartItemModel = basket.API.Models.CartItem;
+global using buildingBlock.Exceptions;
+global using buildingBlock.CQRS;
+global using basket.API.Data.CartItemRepository;
+global using basket.API.Exceptions;
